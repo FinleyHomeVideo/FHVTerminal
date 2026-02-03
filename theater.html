@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
+    <title>VHS Cover Repository</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --retro-red: #cc0000; 
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            background-image: url('./theater.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            margin: 0; 
+            padding: 0;
+            min-height: 100vh; 
+            max-height: 100vh;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ui-header {
+            position: relative;
+            z-index: 50;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            padding: 1.5rem 1rem;
+            flex-shrink: 0;
+        }
+
+        #filter-bar {
+            max-width: min(90vw, 1200px);
+            margin: 0 auto;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 0.5rem;
+            border: 1px solid rgba(128, 128, 128, 0.3);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #search-input {
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            background: rgba(32, 32, 32, 0.9);
+            border: 1px solid rgba(128, 128, 128, 0.5);
+            color: white;
+            font-family: 'VT323', monospace;
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            min-width: 200px;
+            flex-grow: 1;
+            max-width: 400px;
+        }
+
+        #search-input:focus {
+            outline: none;
+            border-color: var(--retro-red);
+        }
+
+        #genre-filter, #year-filter {
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            background: rgba(32, 32, 32, 0.9);
+            border: 1px solid rgba(128, 128, 128, 0.5);
+            color: white;
+            font-size: 0.875rem;
+            min-width: 140px;
+        }
+
+        #projection-screen {
+            position: relative;
+            margin: 3.5rem auto;
+            width: min(95vw, 1050px);
+            height: clamp(375px, 55vh, 600px);
+            display: flex;
+            gap: clamp(0.5rem, 2vw, 1.5rem);
+            padding: clamp(0.5rem, 1.5vw, 1.5rem);
+            z-index: 10;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.02);
+            box-shadow: 
+                inset 0 0 30px rgba(0, 255, 255, 0.05), 
+                0 0 50px rgba(255, 255, 255, 0.05);
+            perspective: 200px;
+            transform: perspective(1000px) rotateX(1deg);
+            border-radius: 2px;
+        }
+
+        #vhs-grid-container {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(clamp(80px, 10vw, 120px), 1fr));
+            gap: clamp(0.5rem, 1vw, 1rem);
+            padding-right: 10px;
+            align-content: start;
+        }
+        
+        #vhs-grid-container::-webkit-scrollbar { 
+            display: none; 
+        }
+
+        #info-sidebar {
+            width: clamp(280px, 35%, 400px);
+            border-left: 1px solid rgba(204, 0, 0, 0.3);
+            padding-left: clamp(0.5rem, 1.5vw, 1rem);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none;
+            flex-shrink: 0;
+        }
+
+        .vhs-poster {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        
+        .vhs-poster:hover {
+            transform: scale(1.05);
+            border-color: var(--retro-red);
+            box-shadow: 0 0 15px rgba(204, 0, 0, 0.4);
+        }
+
+        #static-overlay {
+            position: absolute; 
+            inset: 0;
+            background: url('https://upload.wikimedia.org/wikipedia/commons/7/76/1k_Noisy_Texture.png');
+            opacity: 0;
+            pointer-events: none;
+            z-index: 30;
+            mix-blend-mode: screen;
+        }
+        
+        .vhs-glitch-active {
+            animation: static-flicker 0.2s steps(2) infinite;
+            opacity: 0.15 !important;
+        }
+        
+        @keyframes static-flicker {
+            0% { background-position: 0 0; }
+            100% { background-position: 10% 10%; }
+        }
+
+        .projector-overlay {
+            position: absolute; 
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            opacity: 0.1;
+        }
+
+        .marquee-font { 
+            font-family: 'VT323', monospace; 
+            text-transform: uppercase; 
+        }
+        
+        .text-retro-red { 
+            color: var(--retro-red); 
+        }
+
+        /* 3D Modal Styling */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 200;
+            inset: 0; 
+            background: transparent;
+            justify-content: center; 
+            align-items: center;
+            padding: 1rem;
+        }
+        
+        .modal.open { 
+            display: flex; 
+        }
+
+        .modal-content {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .modal-controls {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            transform: translateY(-50%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+            z-index: 201;
+            pointer-events: none;
+        }
+
+        .modal-controls button {
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            font-size: clamp(2rem, 5vw, 3rem);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .modal-controls button:hover {
+            background: rgba(204, 0, 0, 0.7);
+            transform: scale(1.1);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: clamp(1rem, 3vw, 2rem);
+            right: clamp(1rem, 3vw, 2rem);
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            font-size: clamp(2rem, 4vw, 3rem);
+            width: clamp(2.5rem, 5vw, 3.5rem);
+            height: clamp(2.5rem, 5vw, 3.5rem);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 202;
+            transition: all 0.3s;
+        }
+
+        .close-modal:hover {
+            background: var(--retro-red);
+            transform: scale(1.1);
+        }
+
+        /* Download button styling */
+        .download-modal {
+            position: absolute;
+            top: clamp(1rem, 3vw, 2rem);
+            right: clamp(4.5rem, 9vw, 6.5rem);
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            width: clamp(2.5rem, 5vw, 3.5rem);
+            height: clamp(2.5rem, 5vw, 3.5rem);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 202;
+            transition: all 0.3s;
+        }
+
+        .download-modal:hover {
+            background: var(--retro-red);
+            transform: scale(1.1);
+        }
+
+        .download-modal i {
+            font-size: 1.2rem;
+        }
+
+        /* Download link styling */
+        .download-link-container {
+            position: absolute;
+            bottom: clamp(1rem, 3vw, 2rem);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 202;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .download-link {
+            display: inline-block;
+            background: rgba(204, 0, 0, 0.8);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-family: 'VT323', monospace;
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .download-link:hover {
+            background: rgba(255, 0, 0, 0.9);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+        }
+
+        .download-link i {
+            margin-right: 8px;
+        }
+
+        .vhs-3d-viewport {
+            perspective: 1500px;
+            width: min(320px, 40vw);
+            height: min(480px, 60vw);
+            max-width: 320px;
+            max-height: 480px;
+            position: relative;
+            margin: 0 auto;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .vhs-3d-viewport.dragging {
+            cursor: grabbing;
+        }
+
+        #vhs-3d-box {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #vhs-3d-box.dragging {
+            transition: none;
+        }
+
+        .vhs-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border: 1px solid #222;
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+
+        .vhs-face img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        /* Face positions - responsive - KEEPING YOUR ORIGINAL GEOMETRY */
+        .face-front  { 
+            width: 82%;
+            height: 100%;
+            transform: rotateY(0deg) translateZ(30px); 
+        }
+        .face-back   { 
+            width: 82%;
+            height: 100%;
+            transform: rotateY(180deg) translateZ(30px); 
+        }
+        .face-spine  { 
+            width: 62px; 
+            height: 100%;
+            left: 30%; 
+            margin-left: -25px; 
+            transform: rotateY(90deg) translateZ(160px); 
+        }
+        .face-spine2 { 
+            width: 62px; 
+            height: 100%;
+            left: 48%; 
+            margin-left: -25px; 
+            transform: rotateY(-90deg) translateZ(160px); 
+        }
+        .face-top    { 
+            width: 82%;
+            height: 62px; 
+            top: 50%; 
+            margin-top: -25px; 
+            transform: rotateX(90deg) translateZ(246px); 
+            overflow: hidden; 
+        }
+        .face-bottom { 
+            width: 82%;
+            height: 62px; 
+            top: 50%; 
+            margin-top: -25px; 
+            transform: rotateX(-90deg) translateZ(230px); 
+            overflow: visible; 
+            /* Initially hidden, will be shown only if bottom image exists */
+            display: none;
+        }
+
+        /* Individual image adjustments */
+        .face-front img,
+        .face-back img,
+        .face-spine img,
+        .face-spine2 img {
+            transform: rotate(0deg) scale(1.0);
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
+        }
+
+        .face-top img {
+            transform: rotate(90deg) scale(1.5);
+            width: 15%;
+            height: 325%;
+            object-fit: cover;
+            object-position: center 0%;
+        }
+
+        .face-bottom img {
+            width: 24%;
+            height: 420%;
+            object-fit: cover;
+            position: relative; /* or absolute if needed */
+            top: -96px;         /* move up or down */
+            left: 103px;          /* move left or right */
+            transform: rotate(90deg);
+        }
+
+        .modal-info {
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            padding: 0 1rem;
+        }
+
+        #modal-title {
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            font-weight: bold;
+            color: var(--retro-red);
+            margin-bottom: 0.5rem;
+        }
+
+        #modal-caption {
+            font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Sidebar text responsiveness */
+        #side-title {
+            font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+            line-height: 1.1;
+            margin-bottom: 0.5rem;
+        }
+
+        #side-meta {
+            font-size: clamp(0.75rem, 1.5vw, 1rem);
+            margin-bottom: 1rem;
+        }
+
+        #side-synopsis {
+            font-size: clamp(0.875rem, 1.2vw, 1rem);
+            line-height: 1.4;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            body {
+                overflow: auto;
+                max-height: none;
+            }
+            
+            .ui-header {
+                padding: 1rem 0.5rem;
+            }
+            
+            #filter-bar {
+                flex-direction: column;
+                gap: 0.75rem;
+                padding: 0.75rem;
+            }
+            
+            #search-input,
+            #genre-filter,
+            #year-filter {
+                width: 100%;
+                max-width: none;
+                min-width: 0;
+            }
+            
+            #projection-screen {
+                flex-direction: column;
+                height: clamp(250px, 45vh, 400px);
+                margin: 2rem auto 1rem auto;
+                padding: 1rem;
+            }
+            
+            #vhs-grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+                gap: 0.5rem;
+                padding-right: 0;
+                max-height: none;
+            }
+            
+            #info-sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid rgba(204, 0, 0, 0.3);
+                padding-left: 0;
+                padding-top: 1rem;
+                margin-top: 1rem;
+            }
+            
+            .modal-content {
+                gap: 1rem;
+            }
+            
+            .modal-controls {
+                position: relative;
+                top: 0;
+                transform: none;
+                justify-content: center;
+                gap: 2rem;
+                margin-top: 1rem;
+            }
+            
+            .close-modal, .download-modal {
+                top: 0.5rem;
+                right: 0.5rem;
+            }
+            
+            .download-modal {
+                right: 3.5rem;
+            }
+            
+            .download-link-container {
+                bottom: 0.5rem;
+                width: 95%;
+            }
+            
+            .vhs-3d-viewport {
+                width: 280px;
+                height: 420px;
+            }
+        }
+
+        /* Small phones (iPhone SE, Galaxy S8, etc.) */
+        @media (max-width: 375px) {
+            #projection-screen {
+                height: clamp(200px, 40vh, 350px);
+                margin: 1.5rem auto 0.75rem auto;
+                padding: 0.75rem;
+            }
+            
+            #vhs-grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+                gap: 0.4rem;
+            }
+            
+            #side-title {
+                font-size: 1.25rem;
+            }
+            
+            #side-meta {
+                font-size: 0.7rem;
+            }
+            
+            #side-synopsis {
+                font-size: 0.75rem;
+                line-height: 1.3;
+            }
+            
+            .vhs-3d-viewport {
+                width: 200px;
+                height: 300px;
+            }
+            
+            .modal-controls button {
+                padding: 0.75rem 1rem;
+                min-width: 50px;
+                min-height: 50px;
+                font-size: 1.5rem;
+            }
+            
+            .close-modal, .download-modal {
+                width: 2rem;
+                height: 2rem;
+                font-size: 1.5rem;
+            }
+            
+            .download-modal {
+                right: 2.8rem;
+            }
+            
+            .download-link {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Extra small phones (iPhone 5/SE 1st gen, etc.) */
+        @media (max-width: 320px) {
+            #projection-screen {
+                height: clamp(180px, 35vh, 300px);
+                margin: 1rem auto 0.5rem auto;
+                padding: 0.5rem;
+            }
+            
+            #vhs-grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+                gap: 0.3rem;
+            }
+            
+            #filter-bar {
+                padding: 0.5rem;
+                gap: 0.5rem;
+            }
+            
+            #search-input {
+                font-size: 0.875rem;
+                padding: 0.4rem 0.75rem;
+            }
+            
+            #genre-filter, #year-filter {
+                font-size: 0.75rem;
+                padding: 0.4rem;
+            }
+            
+            #side-title {
+                font-size: 1.1rem;
+            }
+            
+            #side-meta {
+                font-size: 0.65rem;
+            }
+            
+            .vhs-3d-viewport {
+                width: 180px;
+                height: 270px;
+            }
+            
+            .download-link {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.75rem;
+            }
+        }
+
+        /* Tall phones (iPhone X, Galaxy S20, etc.) */
+        @media (max-width: 768px) and (min-height: 700px) {
+            #projection-screen {
+                height: clamp(250px, 40vh, 400px);
+            }
+            
+            #vhs-grid-container {
+                max-height: 50vh;
+            }
+        }
+
+        /* Mobile landscape orientation */
+        @media (max-width: 768px) and (orientation: landscape) {
+            #projection-screen {
+                flex-direction: row;
+                height: clamp(200px, 60vh, 350px);
+                margin: 1rem auto;
+            }
+            
+            #vhs-grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+                max-height: 55vh;
+            }
+            
+            #info-sidebar {
+                width: 40%;
+                border-left: 1px solid rgba(204, 0, 0, 0.3);
+                border-top: none;
+                padding-left: 1rem;
+                padding-top: 0;
+                margin-top: 0;
+            }
+            
+            .vhs-3d-viewport {
+                width: 220px;
+                height: 330px;
+            }
+        }
+
+        /* Improved tablet-specific media query for Tab S7+ */
+        @media (max-width: 1024px) and (min-width: 769px) and (orientation: landscape) {
+            #projection-screen {
+                width: min(90vw, 1000px);
+                height: clamp(350px, 60vh, 550px);
+                margin: 2.5rem auto;
+            }
+            
+            #vhs-grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+            }
+            
+            #info-sidebar {
+                width: clamp(250px, 30%, 350px);
+            }
+        }
+
+        @media (max-width: 1024px) and (min-width: 769px) and (orientation: portrait) {
+            #projection-screen {
+                flex-direction: column;
+                height: clamp(300px, 50vh, 450px);
+                margin: 2rem auto;
+            }
+            
+            #vhs-grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            }
+            
+            #info-sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid rgba(204, 0, 0, 0.3);
+            }
+        }
+
+        /* Very small mobile devices */
+        @media (max-width: 380px) {
+            #vhs-grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+            }
+            
+            .vhs-3d-viewport {
+                width: 220px;
+                height: 330px;
+            }
+        }
+
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .vhs-poster {
+                min-height: 100px;
+            }
+            
+            .vhs-poster:hover {
+                transform: none;
+            }
+            
+            .vhs-poster:active {
+                transform: scale(0.98);
+                transition: transform 0.1s;
+            }
+            
+            #search-input,
+            #genre-filter,
+            #year-filter {
+                min-height: 44px;
+            }
+            
+            .modal-controls button {
+                padding: 1rem;
+                min-width: 60px;
+                min-height: 60px;
+                margin: 0 0.5rem;
+            }
+            
+            button, input, select, .vhs-poster {
+                touch-action: manipulation;
+            }
+        }
+
+        @media (max-width: 375px) {
+            #projection-screen {
+                height: clamp(200px, 40dvh, 350px);
+            }
+        }
+        
+        @media (max-width: 320px) {
+            #projection-screen {
+                height: clamp(180px, 35dvh, 300px);
+            }
+        }
+        
+        @media (max-width: 768px) and (min-height: 700px) {
+            #projection-screen {
+                height: clamp(250px, 40dvh, 400px);
+            }
+        }
+        
+        @media (max-width: 768px) and (orientation: landscape) {
+            #projection-screen {
+                height: clamp(200px, 60dvh, 350px);
+            }
+        }
+
+        /* Adjust font sizes for better readability on mobile */
+        @media (max-width: 768px) {
+            #search-input {
+                font-size: clamp(0.875rem, 3vw, 1rem);
+            }
+            
+            #genre-filter, #year-filter {
+                font-size: clamp(0.75rem, 2.5vw, 0.875rem);
+            }
+            
+            .modal-controls button {
+                font-size: clamp(1.5rem, 4vw, 2rem);
+            }
+            
+            #modal-title {
+                font-size: clamp(1.25rem, 4vw, 1.75rem);
+            }
+            
+            #modal-caption {
+                font-size: clamp(0.65rem, 2vw, 0.75rem);
+            }
+        }
+
+        /* Prevent text size adjustment on mobile */
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        /* Add Firefox-specific fixes */
+        @supports (-moz-appearance:none) {
+            #vhs-grid-container {
+                scrollbar-width: thin;
+                scrollbar-color: rgba(204, 0, 0, 0.3) transparent;
+            }
+            
+            body {
+                -moz-osx-font-smoothing: grayscale;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        /* Add iOS Safari fixes for smooth scrolling */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            #vhs-grid-container {
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        /* Better viewport handling for mobile browsers */
+        @viewport {
+            width: device-width;
+            zoom: 1.0;
+            min-zoom: 1.0;
+            max-zoom: 1.5;
+            user-zoom: fixed;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui-header">
+        <div id="filter-bar">
+            <input type="text" id="search-input" placeholder="SEARCH REPO..." class="marquee-font">
+            <select id="genre-filter" class="text-white">
+                <option value="">ALL GENRES</option>
+            </select>
+            <select id="year-filter" class="text-white">
+                <option value="">ALL YEARS</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="projection-screen"></div>
+    
+    <div id="image-modal" class="modal">
+        <button class="close-modal" onclick="closeModal()">&times;</button>
+        <button class="download-modal" onclick="downloadCurrentImage()" title="Download current cover">
+            <i class="fas fa-download"></i>
+        </button>
+        <div class="modal-content">
+            <div class="vhs-3d-viewport">
+                <div id="vhs-3d-box">
+                    <div class="vhs-face face-front"><img id="img-front" src=""></div>
+                    <div class="vhs-face face-back"><img id="img-back" src=""></div>
+                    <div class="vhs-face face-top"><img id="img-top" src=""></div>
+                    <div class="vhs-face face-spine"><img id="img-spine" src=""></div>
+                    <div class="vhs-face face-spine2"><img id="img-spine2" src=""></div>
+                    <!-- ADDED BOTTOM FACE -->
+                    <div class="vhs-face face-bottom"><img id="img-bottom" src=""></div>
+                </div>
+            </div>
+            <div class="modal-info">
+                <p id="modal-title" class="marquee-font"></p>
+                <p id="modal-caption"></p>
+            </div>
+            <div class="modal-controls">
+                <button onclick="changeSlide(-1)">&#10094;</button>
+                <button onclick="changeSlide(1)">&#10095;</button>
+            </div>
+        </div>
+        <div class="download-link-container">
+            <a href="#" id="direct-download-link" class="download-link" target="_blank">
+                <i class="fas fa-download"></i> DOWNLOAD CURRENT COVER
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const BASE_FOLDER_NAME = 'vhscovers';
+        const vhsCollection = [
+    { id: 'repo', title: "Repossessed", year: 1990, synopsis: "In this spoof of The Exorcist, Linda Blair returns as Nancy Aglet, a housewife who becomes possessed by the devil once again while watching television. To save her, Father Jebedaiah Mayii and Father Luke Brophy must perform a televised exorcism to battle the forces of evil with slapstick comedy.", genres: ["Horror-Comedy"], folder: "Repossessed", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'beyond', title: "From Beyond", year: 1986, synopsis: "Dr. Pretorius and his assistant Crawford Tillinghast develop the Resonator, a device that allows people to see beyond normal reality. However, the machine awakens the pineal gland and attracts malevolent, shape-shifting creatures from another dimension that feed on human brains.", genres: ["Horror", "Sci-Fi", "Lovecraft"], folder: "From Beyond", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'c.h.u.d.', title: "C.H.U.D.", year: 1984, synopsis: "A rash of bizarre disappearances in New York City reveals a government cover-up involving toxic waste. Beneath the city's streets, the chemical runoff has transformed the homeless population into Cannibalistic Humanoid Underground Dwellers (C.H.U.D.s) who have begun hunting the surface world.", genres: ["Horror", "Sci-Fi", "Creature"], folder: "chud", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'c.h.u.d.2', title: "C.H.U.D. II", year: 1988, synopsis: "When three teenagers accidentally lose a cryogenically frozen corpse from a government experiment, they inadvertently revive Bud the C.H.U.D. Unlike the first film's monsters, Bud is an 'Enlightened Cannibal' who begins turning their suburban town into a horde of flesh-eating zombies.", genres: ["Horror", "Sci-Fi", "Creature"], folder: "chud2", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'sphere', title: "Sphere", year: 1998, synopsis: "A team of scientists is sent to the bottom of the ocean to investigate a spacecraft that has been submerged for 300 years. Inside, they discover a perfect golden sphere of extraterrestrial origin that begins manifesting their deepest fears into deadly, physical realities.", genres: ["Thriller", "Sci-Fi"], folder: "Sphere", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'hello2', title: "Hello Mary Lou: Prom Night II", year: 1988, synopsis: "In 1957, Mary Lou Maloney is killed at her prom by a jealous boyfriend. Thirty years later, her vengeful spirit is released, possessing an innocent student named Vicki Carpenter to reclaim her crown and wreak bloody havoc on the current graduating class.", genres: ["Horror", "Thriller", "Slasher"], folder: "hello2", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'pump1', title: "Pumpkinhead", year: 1988, synopsis: "Consumed by grief after his young son is killed by a group of careless city teenagers, Ed Harley seeks out a backwoods witch to summon a legendary demon of vengeance. Harley soon realizes that he shares a psychic link with the creature as it systematically hunts down its victims.", genres: ["Horror", "Supernatural"], folder: "pumpkinhead", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'mirror', title: "Mirror Mirror", year: 1990, synopsis: "A gothic teenage girl moves to a new town and discovers an antique mirror in her room that possesses a demonic force. The mirror grants her dark powers to take revenge on her high school bullies, but the price of its 'gifts' becomes increasingly deadly as the mirror consumes her soul.", genres: ["Horror", "Supernatural", "Thriller"], folder: "mirrormirror", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'arach', title: "Arachnophobia", year: 1990, synopsis: "A deadly Venezuelan spider hitches a ride in a coffin to a small California town, where it mates with a local house spider to create a lethal, fast-multiplying swarm. A town doctor with a phobia of spiders must team up with an eccentric exterminator to stop the infestation.", genres: ["Horror-Comedy", "Thriller", "Creature"], folder: "arachnophobia", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'vamplm', title: "Vampires: Los Muertos", year: 2002, synopsis: "Vampire hunter Derek Bliss is hired to assemble a team of slayers in Mexico to hunt down a powerful 'vampire princess' named Una. Una seeks a legendary black cross that will allow her and her kind to walk in the daylight, making them unstoppable.", genres: ["Vampire", "Action", "Horror", "Thriller"], folder: "vampires los muertos", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'blink', title: "Blink", year: 1994, synopsis: "Emma Brody, a blind musician who recently regained her sight through surgery, witnesses a murder. However, due to a condition called 'delayed vision,' she doesn't actually 'see' the killer's face until the next day, leading to a deadly game of cat and mouse with a serial killer.", genres: ["Neo-Noir", "Thriller", "Drama", "Mystery"], folder: "blink", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'lep1', title: "Leprechaun", year: 1993, synopsis: "A vengeful, gold-obsessed leprechaun is accidentally released from a crate in North Dakota. He begins a murderous rampage to recover his stolen gold coins from a group of residents, including a young Jennifer Aniston, who have no idea what they've stumbled upon.", genres: ["Horror-Comedy"], folder: "leprechaun", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'lep2', title: "Leprechaun 2", year: 1994, synopsis: "On his one-thousandth birthday, the Leprechaun emerges in modern-day Los Angeles to claim a bride. After choosing a descendant of his original target from centuries ago, he must fight off her boyfriend and a shady tour guide while trying to force her into a demonic marriage.", genres: ["Horror-Comedy"], folder: "leprechaun2", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'lep3', title: "Leprechaun 3", year: 1995, synopsis: "The Leprechaun's statue is brought to a Las Vegas pawn shop, where he is revived. He soon begins terrorizing the casinos, using his dark magic to grant twisted wishes to greedy gamblers while hunting for a single gold coin that has fallen into the hands of a college student.", genres: ["Horror-Comedy"], folder: "leprechaun3", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'lep4', title: "Leprechaun 4", year: 1997, synopsis: "In the year 2096, the Leprechaun is in deep space on a distant planet, attempting to marry a princess to become a king. A group of space marines intervenes, leading to a sci-fi battle involving cyborgs, mutations, and the Leprechaun's signature brand of murderous mischief.", genres: ["Horror-Comedy"], folder: "leprechaun4", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'lep5', title: "Leprechaun 5", year: 2000, synopsis: "Also known as Leprechaun in the Hood, this entry sees the Leprechaun revived by a group of aspiring rappers in the inner city. After they steal his magic flute, he goes on a killing spree to reclaim it, eventually facing off against a record producer played by Ice-T.", genres: ["Horror-Comedy"], folder: "leprechaun5", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'evhor', title: "Event Horizon", year: 1997, synopsis: "In 2047, a rescue crew is sent to investigate the Event Horizon, a starship that disappeared years ago and has suddenly reappeared near Neptune. They discover the ship's experimental gravity drive opened a gateway to a dimension of pure chaos and evil, which has now returned with the ship.", genres: ["Horror", "Sci-Fi", "Supernatural", "Thriller"], folder: "eventhorizon", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'bubba', title: "Bubba Ho-Tep", year: 2002, synopsis: "An elderly man in a Texas nursing home who claims to be the real Elvis Presley teams up with a fellow resident who believes he is John F. Kennedy. Together, they must defend their home from an ancient Egyptian soul-sucking mummy dressed in cowboy gear.", genres: ["Horror-Comedy"], folder: "bubbahotep", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'AoD', title: "Army of Darkness", year: 1993, synopsis: "Ash Williams is accidentally transported back to 1300 A.D. and must recover the Necronomicon to return home. Along the way, he accidentally releases an army of the dead and must lead a medieval defense against the forces of darkness using his 'boomstick' and a chainsaw hand.", genres: ["Horror-Comedy"], folder: "armyofdarkness", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'ed2', title: "Evil Dead 2: Dead By Dawn", year: 1993, synopsis: "A sequel-remake of the original, Ash Williams finds himself back in a remote cabin where he unearths the Book of the Dead once more. After his girlfriend is possessed, Ash must battle various Deadites and his own severed hand in a frantic, gore-filled descent into madness.", genres: ["Horror-Comedy"], folder: "evildead2", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'ed1', title: "Evil Dead", year: 1981, synopsis: "Five friends travel to a remote cabin in the woods for a vacation. After discovering a tape recording of incantations from the Necronomicon, they unwittingly release a flesh-possessing demon that begins picking them off one by one, turning them into horrific Deadites.", genres: ["Horror-Comedy"], folder: "evildead", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'gate2', title: "Gate 2: Tresspassers, The", year: 1990, synopsis: "Years after the events of the first film, Terrence returns to the site of the hole in the ground to perform a ritual to gain power. He accidentally brings through a 'minion' from the demonic dimension that grants wishes, but the gifts quickly turn into nightmares for him and his friends.", genres: ["Horror"], folder: "gate2", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'gate1', title: "Gate 1, The", year: 1987, synopsis: "Two young boys and a teenage sister are left home alone for the weekend and accidentally open a portal to a dimension of ancient demons in their backyard. They must use rocket power and heavy metal music to close the gate before a horde of tiny minions consumes the world.", genres: ["Horror"], folder: "gate", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'indreams', title: "In Dreams", year: 1999, synopsis: "An illustrator named Claire Cooper begins having psychic visions of a serial killer who has kidnapped her daughter. As the connection between her mind and the killer's grows stronger, she is institutionalized and must find a way to stop the murderer before he strikes again.", genres: ["Horror", "Fantasy", "Psychological", "Thriller"], folder: "indreams", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'h20', title: "Halloween 7: H20", year: 1998, synopsis: "Twenty years after the night Michael Myers came home, Laurie Strode is living under an assumed name as the headmistress of a private school. Her past returns to haunt her when Michael discovers her whereabouts, leading to a final showdown between siblings.", genres: ["Slasher"], folder: "h20", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'hal5', title: "Halloween 5", year: 1989, synopsis: "One year after the events of the fourth film, Michael Myers awakens from a coma and returns to Haddonfield to hunt his niece, Jamie Lloyd. Jamie has developed a telepathic link with Michael, which Dr. Loomis attempts to use to finally capture the Boogeyman.", genres: ["Slasher"], folder: "halloween5", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'hal4', title: "Halloween 4", year: 1988, synopsis: "Ten years after his original massacre, Michael Myers awakens during a transfer and returns to Haddonfield to kill his niece, Jamie Lloyd. Dr. Loomis returns to the town to warn the police as the body count rises during a Halloween blackout.", genres: ["Slasher"], folder: "halloween4", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'mosh', title: "Monkey Shines", year: 1988, synopsis: "A law student who becomes a quadriplegic after an accident is given a service monkey named Ella. However, Ella has been injected with human brain tissue as part of a scientific experiment, creating a telepathic and murderous bond between the man and the monkey.", genres: ["Horror", "Psychological", "Thriller", "Sci-Fi"], folder: "monkeyshines", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'hal1', title: "Halloween", year: 1978, synopsis: "Fifteen years after murdering his sister on Halloween night, Michael Myers escapes from a psychiatric hospital and returns to Haddonfield to stalk a group of teenagers. Laurie Strode must survive the night as the 'Shape' begins a systematic killing spree.", genres: ["Slasher"], folder: "halloween1", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'istill', title: "I Still Know What You Did Last Summer", year: 1998, synopsis: "Julie James and her friends win a trip to a Bahamas resort during the hurricane season. However, the fisherman killer from the previous summer follows them to the island, turning their tropical getaway into a rainy, isolated bloodbath.", genres: ["Slasher"], folder: "istillknow", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'lostboys', title: "Lost Boys, The", year: 1987, synopsis: "Two brothers move to a coastal California town and discover it's a haven for a gang of stylish, motorcycle-riding vampires. The younger brother teams up with two self-proclaimed vampire hunters to save his older brother from becoming a full-fledged member of the undead.", genres: ["Horror-Comedy", "Vampire"], folder: "lostboys", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'lasthouse', title: "Last House on Dead End Street", year: 1977, synopsis: "After serving time in prison, a disgruntled filmmaker decides to take revenge on the society that rejected him by making 'snuff' films. He lures people into an abandoned house to film their gruesome torture and murders in this gritty, low-budget exploitation cult classic.", genres: ["Horror", "Exploitation"], folder: "lasthouse", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'tremors1', title: "Tremors 1", year: 1990, synopsis: "In the isolated town of Perfection, Nevada, handy-men Val and Earl discover the area is being hunted by giant, prehistoric, subterranean worms that track their prey by vibration. The residents must find a way to reach high ground and outsmart the 'Graboids.'", genres: ["Horror-Comedy", "Creature"], folder: "tremors", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'tremors2', title: "Tremors 2", year: 1996, synopsis: "Earl Bassett is hired by a Mexican oil company to eliminate a new infestation of Graboids. He is soon joined by survivalist Burt Gummer, and they discover the worms have evolved into 'Shriekers'—smaller, heat-seeking land creatures that can multiply rapidly.", genres: ["Horror-Comedy", "Creature"], folder: "tremors2", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'trembox', title: "Tremors Box Set", year: 1996, synopsis: "A collector's double-feature VHS set containing both the original Tremors and its action-packed sequel, Tremors 2: Aftershocks. Follow the evolution of the Graboids from subterranean worms to bipedal Shriekers.", genres: ["Horror-Comedy", "Creature"], folder: "trembox", covers: ["front.jpg", "spine.jpg", "back.jpg", "top.jpg", "bottom.jpg"]},
+    { id: 'trem3', title: "Tremors 3", year: 2001, synopsis: "Burt Gummer returns to Perfection, Nevada, which has been turned into a Graboid-themed tourist attraction. The worms return and evolve yet again into 'Ass-Blasters'—creatures capable of flight—leaving Burt to lead the town's defense once more.", genres: ["Horror-Comedy", "Creature"], folder: "tremors3", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'dracris', title: "Dracula Rising", year: 1993, synopsis: "An art restorer travels to Eastern Europe to work at a monastery and meets a mysterious man who is the son of Vlad the Impaler. She discovers she is the reincarnation of his long-lost love, leading to a romantic struggle against his vampire father.", genres: ["Vampire", "Horror"], folder: "dracularising", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'prince', title: "Prince of Darkness", year: 1987, synopsis: "A physics professor and his students are asked to investigate a mysterious cylinder containing a swirling green liquid in the basement of an abandoned church. They soon realize the liquid is the essence of the Anti-God, which begins possessing them to usher in the apocalypse.", genres: ["Horror", "Supernatural"], folder: "princeofdarkness", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'reddragon', title: "Red Dragon", year: 2002, synopsis: "Retired FBI agent Will Graham is called back to duty to hunt a serial killer known as 'The Tooth Fairy.' To understand the killer's mind, Graham must consult with his old nemesis, the incarcerated Dr. Hannibal Lecter, whom he originally captured.", genres: ["Horror", "Psychological", "Thriller"], folder: "reddragon", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'dotd', title: "Day of the Dead", year: 1985, synopsis: "As the world is overrun by zombies, a small group of scientists and volatile military personnel hide in an underground bunker. Tensions boil over as the scientists try to 'tame' a zombie named Bub, while the soldiers descend into madness and mutiny.", genres: ["Horror", "Zombie", "Post-Apocalyptic"], folder: "dotd", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'diabolique', title: "Diabolique", year: 1955, synopsis: "In this classic French suspense thriller, the frail wife and the mistreated mistress of a sadistic boarding school headmaster conspire to murder him. After they drown him and dump the body, his corpse mysteriously disappears, leading to a series of terrifying events.", genres: ["Suspense", "Thriller"], folder: "diabolique", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'taleshood', title: "Tales from the Hood", year: 1995, synopsis: "Three drug dealers looking for a hidden stash of 'product' visit a funeral home where the eccentric mortician Mr. Simms tells them four horror stories. Each tale addresses social issues like police brutality, domestic abuse, and racism with a supernatural twist.", genres: ["Horror-Comedy"], folder: "taleshood", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'watchers', title: "Watchers, The", year: 1988, synopsis: "A genetically engineered Golden Retriever with human-level intelligence escapes from a top-secret laboratory, followed closely by a murderous monster known as the Outsider. A lonely teenager finds the dog and must protect his family from the government and the beast.", genres: ["Horror", "Sci-Fi", "Creature"], folder: "watchers", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'item', title: "Item, The", year: 1999, synopsis: "A group of criminals is hired to guard a mysterious package for 24 hours in a desert cabin. They discover the package contains a strange, telepathic creature that begins playing mind games with them, turning the group against each other in a bloody battle for survival.", genres: ["Horror-Comedy", "Creature"], folder: "item", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'omen', title: "Omen, The", year: 1976, synopsis: "An American diplomat secretly replaces his stillborn child with an orphan named Damien. As Damien grows, a series of mysterious and gruesome deaths occur around him, leading the father to realize that his son is the Antichrist prophesied in the Bible.", genres: ["Horror", "Supernatural", "Thriller", "Psychological"], folder: "omen", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'terror', title: "Terror, The", year: 1963, synopsis: "A young officer in Napoleon's army becomes obsessed with a beautiful woman he sees on a beach. He follows her to the castle of Baron von Leppe (Boris Karloff), where he discovers the woman is a ghost being used by a witch to drive the Baron to suicide.", genres: ["Horror", "Suspense", "Thriller", "Supernatural"], folder: "terror", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'dark city', title: "Dark City", year: 1998, synopsis: "John Murdoch awakens in a hotel bathtub with no memory and find himself wanted for a series of murders. He soon discovers that his city is controlled by 'The Strangers,' pale aliens who stop time and rearrange the physical world and people's memories every midnight.", genres: ["Sci-Fi", "Mystery", "Neo-Noir", "Thriller", "Fantasy"], folder: "dark city", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'from hell', title: "From Hell", year: 2001, synopsis: "In Victorian London, an opium-addicted inspector with psychic visions investigates the brutal Whitechapel murders. He discovers a conspiracy involving the Freemasons and the Royal Family, suggesting Jack the Ripper's identity is more complex than anyone imagined.", genres: ["Thriller"], folder: "from hell", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'creepers', title: "Creepers", year: 1985, synopsis: "Also released as Phenomena, this Dario Argento film follows a girl at a Swiss boarding school who has the ability to telepathically communicate with insects. She uses her powers to track down a serial killer who is decapitating young students in the area.", genres: ["Giallo", "Fantasy", "Horror"], folder: "creepers", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'househaunted', title: "House on Haunted Hill", year: 1959, synopsis: "An eccentric millionaire offers $10,000 to five guests if they can survive a night locked in a spooky mansion. As the night progresses, a series of scares and traps make the guests wonder if the house is actually haunted or if their host is playing a deadly game.", genres: ["Horror", "Mystery", "Suspense"], folder: "househaunted", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'clown', title: "Clown at Midnight, The", year: 1999, synopsis: "A group of teenagers helps restore an old opera house where a famous diva was murdered years ago. They find themselves trapped inside and hunted by a killer dressed as a clown who has a personal connection to the opera house's dark history.", genres: ["Slasher", "Horror", "Thriller"], folder: "clown", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'childs play 2', title: "Child's Play 2", year: 1990, synopsis: "Two years after the first film, the Play Pals company reconstructs the Chucky doll to prove there's nothing wrong with it, accidentally bringing the soul of Charles Lee Ray back to life. Chucky tracks down Andy Barclay at a foster home to finish their body-swap.", genres: ["Slasher", "Horror", "Supernatural", "Thriller"], folder: "childs play 2", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'ring', title: "Ring, The", year: 2002, synopsis: "A journalist investigates a cursed videotape that reportedly kills anyone who watches it exactly seven days later. After her son watches the tape, she races against time to uncover the origin of the footage and the story of a girl named Samara.", genres: ["Supernatural", "Horror", "Mystery"], folder: "ring", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'cube2', title: "Cube 2: Hypercube", year: 2003, synopsis: "Eight strangers wake up in a series of interconnected, glowing white cubes where the laws of physics and time don't apply. They must work together to find an exit before the hypercube collapses and kills them all in this high-concept sci-fi sequel.", genres: ["Horror", "Mystery", "Sci-Fi"], folder: "cube2", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]},
+    { id: 'thing a', title: "Thing, The", year: 1982, synopsis: "A group of American researchers in Antarctica are hunted by a parasitic extraterrestrial lifeform that can perfectly imitate any living being. Paranoia sets in as the men realize they can't trust each other, and anyone could be 'The Thing.'", genres: ["Body-Horror", "Creature", "Psychological", "Horror"], folder: "thing a", covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "bottom.jpg"]}
+];
+
+        let currentCollection = []; 
+        let currentSlideIndex = 0; 
+        let currentMovieTitle = "";
+
+        // Drag-to-spin variables
+        let isDragging = false;
+        let startX, startY;
+        let currentRotationX = 0;
+        let currentRotationY = 0;
+        let previousRotationX = 0;
+        let previousRotationY = 0;
+        const rotationSpeed = 0.5;
+
+        const projectorSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2557/2557-preview.mp3'); 
+        projectorSound.volume = 0.3;
+
+        const triggerStatic = () => {
+            projectorSound.currentTime = 0;
+            projectorSound.play().catch(() => {});
+            const overlay = document.getElementById('static-overlay');
+            if(overlay) {
+                overlay.classList.add('vhs-glitch-active');
+                setTimeout(() => overlay.classList.remove('vhs-glitch-active'), 300);
+            }
+        };
+
+        // Drag-to-spin functions
+        const initDragControls = () => {
+            const viewport = document.querySelector('.vhs-3d-viewport');
+            const box = document.getElementById('vhs-3d-box');
+            
+            if (!viewport || !box) return;
+            
+            // Mouse events
+            viewport.addEventListener('mousedown', startDrag);
+            viewport.addEventListener('mousemove', drag);
+            viewport.addEventListener('mouseup', endDrag);
+            viewport.addEventListener('mouseleave', endDrag);
+            
+            // Touch events for mobile
+            viewport.addEventListener('touchstart', startDragTouch);
+            viewport.addEventListener('touchmove', dragTouch);
+            viewport.addEventListener('touchend', endDrag);
+            viewport.addEventListener('touchcancel', endDrag);
+            
+            // Prevent context menu on long press
+            viewport.addEventListener('contextmenu', (e) => e.preventDefault());
+        };
+
+        // Mouse drag functions
+        const startDrag = (e) => {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            const viewport = document.querySelector('.vhs-3d-viewport');
+            const box = document.getElementById('vhs-3d-box');
+            
+            if (viewport && box) {
+                viewport.classList.add('dragging');
+                box.classList.add('dragging');
+                
+                // Store current rotation when starting drag
+                previousRotationX = currentRotationX;
+                previousRotationY = currentRotationY;
+            }
+        };
+
+        const drag = (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            // Calculate rotation - swap X/Y for more intuitive control
+            currentRotationY = previousRotationY + deltaX * rotationSpeed;
+            currentRotationX = previousRotationX + deltaY * rotationSpeed;
+            
+            // Clamp vertical rotation to prevent over-rotation
+            currentRotationX = Math.max(-90, Math.min(90, currentRotationX));
+            
+            update3DRotation();
+        };
+
+        const endDrag = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const viewport = document.querySelector('.vhs-3d-viewport');
+            const box = document.getElementById('vhs-3d-box');
+            
+            if (viewport && box) {
+                viewport.classList.remove('dragging');
+                box.classList.remove('dragging');
+                
+                // Add smooth transition back after drag
+                box.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                
+                // Remove transition property after animation completes
+                setTimeout(() => {
+                    box.style.transition = '';
+                }, 300);
+            }
+        };
+
+        // Touch drag functions
+        const startDragTouch = (e) => {
+            if (e.touches.length === 1) {
+                e.preventDefault();
+                isDragging = true;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                
+                const viewport = document.querySelector('.vhs-3d-viewport');
+                const box = document.getElementById('vhs-3d-box');
+                
+                if (viewport && box) {
+                    viewport.classList.add('dragging');
+                    box.classList.add('dragging');
+                    
+                    previousRotationX = currentRotationX;
+                    previousRotationY = currentRotationY;
+                }
+            }
+        };
+
+        const dragTouch = (e) => {
+            if (!isDragging || e.touches.length !== 1) return;
+            e.preventDefault();
+            
+            const deltaX = e.touches[0].clientX - startX;
+            const deltaY = e.touches[0].clientY - startY;
+            
+            currentRotationY = previousRotationY + deltaX * rotationSpeed;
+            currentRotationX = previousRotationX + deltaY * rotationSpeed;
+            
+            // Clamp vertical rotation
+            currentRotationX = Math.max(-90, Math.min(90, currentRotationX));
+            
+            update3DRotation();
+        };
+
+        // Update the 3D box rotation
+        const update3DRotation = () => {
+            const box = document.getElementById('vhs-3d-box');
+            if (box) {
+                box.style.transform = `rotateY(${currentRotationY}deg) rotateX(${currentRotationX}deg)`;
+            }
+        };
+
+        // Reset rotation when changing slides or closing modal
+        const resetRotation = () => {
+            currentRotationX = 0;
+            currentRotationY = 0;
+            previousRotationX = 0;
+            previousRotationY = 0;
+            update3DRotation();
+        };
+
+        // Update download link
+        const updateDownloadLink = () => {
+            if (currentCollection.length > 0 && currentCollection[currentSlideIndex]) {
+                const downloadLink = document.getElementById('direct-download-link');
+                const currentImage = currentCollection[currentSlideIndex];
+                const fileName = currentImage.name || `cover_${currentSlideIndex + 1}.jpg`;
+                
+                downloadLink.href = currentImage.path;
+                downloadLink.download = `${currentMovieTitle.replace(/\s+/g, '_')}_${fileName}`;
+                
+                // Update link text to be more descriptive
+                const coverNames = ['Front Cover', 'Back Cover', 'Top Label', 'Spine (Side 1)', 'Spine (Side 2)', 'Bottom Label'];
+                const coverName = coverNames[currentSlideIndex] || `Cover ${currentSlideIndex + 1}`;
+                downloadLink.innerHTML = `<i class="fas fa-download"></i> DOWNLOAD ${coverName.toUpperCase()}`;
+            }
+        };
+
+        // Download current image
+        const downloadCurrentImage = () => {
+            if (currentCollection.length > 0 && currentCollection[currentSlideIndex]) {
+                const downloadLink = document.getElementById('direct-download-link');
+                
+                // Trigger the download
+                triggerStatic();
+                
+                // Create a temporary anchor and trigger click
+                const tempAnchor = document.createElement('a');
+                tempAnchor.href = downloadLink.href;
+                tempAnchor.download = downloadLink.download;
+                document.body.appendChild(tempAnchor);
+                tempAnchor.click();
+                document.body.removeChild(tempAnchor);
+                
+                // Optional: Show a brief success message
+                const originalText = downloadLink.innerHTML;
+                downloadLink.innerHTML = '<i class="fas fa-check"></i> DOWNLOADING...';
+                downloadLink.style.background = 'rgba(0, 204, 0, 0.8)';
+                
+                setTimeout(() => {
+                    downloadLink.innerHTML = originalText;
+                    downloadLink.style.background = '';
+                }, 1000);
+            }
+        };
+
+        const init = () => {
+            const genres = new Set(); 
+            const years = new Set();
+            
+            vhsCollection.forEach(m => { 
+                m.genres.forEach(g => genres.add(g)); 
+                years.add(m.year); 
+            });
+            
+            const gf = document.getElementById('genre-filter');
+            [...genres].sort().forEach(g => gf.add(new Option(g, g)));
+            
+            const yf = document.getElementById('year-filter');
+            [...years].sort((a,b) => b-a).forEach(y => yf.add(new Option(y, y)));
+            
+            ['search-input','genre-filter','year-filter'].forEach(id => {
+                document.getElementById(id).addEventListener('input', loadGrid);
+            });
+            
+            loadGrid();
+            
+            // Handle window resize
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    // Recalculate grid on resize
+                    const grid = document.getElementById('vhs-grid-container');
+                    if (grid) {
+                        const containerWidth = grid.clientWidth;
+                        const minItemWidth = 90;
+                        const columns = Math.max(1, Math.floor(containerWidth / minItemWidth));
+                        grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${Math.max(70, containerWidth/columns - 20)}px, 1fr))`;
+                    }
+                }, 250);
+            });
+        };
+
+        const loadGrid = () => {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const genre = document.getElementById('genre-filter').value;
+            const year = document.getElementById('year-filter').value;
+            const screen = document.getElementById('projection-screen');
+            
+            screen.innerHTML = `
+                <div id="static-overlay"></div>
+                <div class="projector-overlay"></div>
+                <div id="vhs-grid-container"></div>
+                <div id="info-sidebar" class="marquee-font">
+                    <div>
+                        <h2 id="side-title" class="text-retro-red">THEATER READY</h2>
+                        <p id="side-meta" class="text-gray-500 mb-2 tracking-tighter">SELECT A TAPE BELOW</p>
+                        <div id="side-synopsis" class="text-gray-300 italic leading-tight pr-2"></div>
+                    </div>
+                    <div class="border-t border-red-900/50 pt-2">
+                        <p class="text-red-600 animate-pulse uppercase" style="font-size: 0.7rem;">Projector: Running</p>
+                    </div>
+                </div>
+            `;
+
+            const grid = document.getElementById('vhs-grid-container');
+            const filtered = vhsCollection.filter(m => {
+                if(search && !m.title.toLowerCase().includes(search)) return false;
+                if(genre && !m.genres.includes(genre)) return false;
+                if(year && m.year.toString() !== year) return false;
+                return true;
+            }).sort((a,b) => a.title.localeCompare(b.title));
+
+            filtered.forEach(m => {
+                const img = document.createElement('img');
+                img.src = `./${BASE_FOLDER_NAME}/${m.folder}/${m.covers[0]}`;
+                img.className = "vhs-poster";
+                img.alt = `${m.title} VHS Cover`;
+                img.loading = "lazy";
+                
+                img.onmouseenter = () => {
+                    const sideTitle = document.getElementById('side-title');
+                    if(sideTitle && sideTitle.innerText !== m.title) {
+                        triggerStatic();
+                        document.getElementById('side-title').innerText = m.title;
+                        document.getElementById('side-meta').innerText = `${m.year} | ${m.genres.join(', ')}`;
+                        document.getElementById('side-synopsis').innerText = m.synopsis;
+                    }
+                };
+
+                img.onclick = () => openModal(m.id);
+                grid.appendChild(img);
+            });
+            
+            // Adjust grid columns based on container size
+            setTimeout(() => {
+                const containerWidth = grid.clientWidth;
+                const minItemWidth = 90;
+                const columns = Math.max(1, Math.floor(containerWidth / minItemWidth));
+                grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${Math.max(70, containerWidth/columns - 20)}px, 1fr))`;
+            }, 100);
+        };
+
+        const openModal = (id) => {
+            const m = vhsCollection.find(x => x.id === id);
+            currentMovieTitle = m.title;
+            currentCollection = m.covers.map(c => ({ path: `./${BASE_FOLDER_NAME}/${m.folder}/${c}`, name: c }));
+            
+            // Set face images - INCLUDING BOTTOM
+            document.getElementById('img-front').src = currentCollection[0]?.path || '';
+            document.getElementById('img-back').src  = currentCollection[1]?.path || '';
+            document.getElementById('img-top').src   = currentCollection[2]?.path || '';
+            document.getElementById('img-spine').src = currentCollection[3]?.path || '';
+            document.getElementById('img-spine2').src = currentCollection[4]?.path || '';
+            
+            // OPTION 2: Only show bottom face if bottom.jpg exists
+            const bottomFace = document.querySelector('.face-bottom');
+            const bottomImage = currentCollection[5]?.path; 
+            
+            if (bottomImage) {
+                document.getElementById('img-bottom').src = bottomImage;
+                bottomFace.style.display = 'block';
+            } else {
+                bottomFace.style.display = 'none';
+            }
+
+            currentSlideIndex = 0;
+            
+            // Reset rotation when opening modal
+            resetRotation();
+            
+            // Initialize drag controls
+            setTimeout(initDragControls, 100);
+            
+            // Update download link
+            updateDownloadLink();
+            
+            showSlide();
+            document.getElementById('image-modal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        };
+
+        const closeModal = () => {
+            document.getElementById('image-modal').classList.remove('open');
+            document.body.style.overflow = '';
+            resetRotation();
+        };
+        
+        const showSlide = () => {
+            const box = document.getElementById('vhs-3d-box');
+            const rotations = [
+                `rotateY(${currentRotationY}deg) rotateX(${currentRotationX}deg)`,    // Front
+                `rotateY(${180 + currentRotationY}deg) rotateX(${currentRotationX}deg)`, // Back
+                `rotateX(${-90 + currentRotationX}deg) rotateY(${currentRotationY}deg)`, // Top
+                `rotateY(${-90 + currentRotationY}deg) rotateX(${currentRotationX}deg)`, // Side 1
+                `rotateY(${90 + currentRotationY}deg) rotateX(${currentRotationX}deg)`,   // Side 2
+                `rotateX(${90 + currentRotationX}deg) rotateY(${currentRotationY}deg)`    // Bottom
+            ];
+
+            box.style.transform = rotations[currentSlideIndex] || `rotateY(${currentRotationY}deg) rotateX(${currentRotationX}deg)`;
+            document.getElementById('modal-title').innerText = currentMovieTitle;
+            document.getElementById('modal-caption').innerText = `Viewing Scan: ${currentCollection[currentSlideIndex]?.name?.toUpperCase() || 'UNKNOWN'}`;
+            
+            // Update download link for current slide
+            updateDownloadLink();
+        };
+
+        const changeSlide = (n) => {
+            // Check if bottom face is actually visible (image loaded)
+            const bottomFace = document.querySelector('.face-bottom');
+            const bottomImg = document.getElementById('img-bottom');
+            const hasBottomFace = bottomFace.style.display !== 'none' && bottomImg.src;
+            
+            // Calculate max faces based on whether bottom exists
+            let maxFaces = 5; // Default to 5 faces (front, back, top, side1, side2)
+            if (hasBottomFace) {
+                maxFaces = 6; // Include bottom
+            }
+            
+            currentSlideIndex = (currentSlideIndex + n + maxFaces) % maxFaces;
+            triggerStatic();
+            
+            // Reset rotation when changing slides
+            resetRotation();
+            
+            // Apply the predefined rotation for the new slide
+            setTimeout(() => {
+                showSlide();
+            }, 50);
+        };
+
+        // Close modal with ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+            if (e.key === 'ArrowRight') changeSlide(1);
+            if (e.key === 'd' || e.key === 'D') downloadCurrentImage();
+        });
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

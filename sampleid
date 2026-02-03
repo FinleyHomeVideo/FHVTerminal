@@ -1,0 +1,9 @@
+{
+				id: '',
+				title: "",
+				year: 1995,
+				synopsis: "",
+				genres: [""],
+				folder: "",
+				covers: ["front.jpg", "back.jpg", "top.jpg", "side 1.jpg", "side 2.jpg", "sticker 1.jpg", "sticker 2.jpg"],
+			},
